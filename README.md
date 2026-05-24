@@ -39,7 +39,9 @@ src/
     ├── Phase3Page.tsx            # Phase 3 번들 최적화 실험
     ├── Phase4Page.tsx            # Phase 4 캐싱 최적화 실험
     ├── Phase5Before.tsx          # Phase 5 ❌ (1000행 전부 DOM 렌더)
-    └── Phase5After.tsx           # Phase 5 ✅ (useVirtualizer — ~25행만 DOM 렌더)
+    ├── Phase5After.tsx           # Phase 5 ✅ (useVirtualizer — ~25행만 DOM 렌더)
+    ├── Phase6Before.tsx          # Phase 6 ❌ (inputValue state가 부모에 있음)
+    └── Phase6After.tsx           # Phase 6 ✅ (SearchInput이 state 소유 + Enter-to-search)
 ```
 
 ---
@@ -261,3 +263,67 @@ const virtualizer = useVirtualizer({
 1. **Elements 탭**: P5 Before → 스크롤 컨테이너 안 행 1000개 확인 / P5 After → ~25개만 존재 확인
 2. **Performance 탭**: 스크롤 시 Before는 Layout 이벤트 빈번 / After는 현저히 감소
 3. **화면 상단 DOM 카운터**: P5 After 탭에서 스크롤해도 "DOM에 렌더된 행" 숫자가 일정하게 유지되는 것 확인
+
+---
+
+## Phase 6 — State 위치 최적화
+
+### 핵심 질문
+> "Enter 눌러서 검색하는데 왜 타이핑할 때 인풋이 버벅일까?"
+
+Enter-to-search 구조에서도 **인풋 value state가 어디에 있느냐**에 따라 타이핑 성능이 달라진다.
+
+### 원인
+
+```
+[Before] 부모가 inputValue state 소유
+
+타이핑 → setInputValue → 부모 리렌더
+                        → 10,000개 행 reconciliation (데이터 안 바뀌어도)
+                        → 인풋에 글자 반영
+```
+
+리스트 데이터(`filterQuery`)는 Enter 전까지 변하지 않는다. 그런데도 부모가 리렌더되면 자식인 리스트 전체가 reconciliation을 거친다 — Phase 1에서 봤던 것과 같은 원리.
+
+### Before vs After
+
+| | 타이핑 시 리렌더 범위 | Enter 시 |
+|---|---|---|
+| ❌ P6 Before | 부모 + 10,000행 reconciliation | 리스트 갱신 |
+| ✅ P6 After | SearchInput 컴포넌트만 | 리스트 갱신 |
+
+### 구현
+
+```tsx
+// ✅ SearchInput이 inputValue를 직접 소유
+const SearchInput = memo(function SearchInput({ onSearch }) {
+  const [value, setValue] = useState(""); // 타이핑 시 이 컴포넌트만 리렌더
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter") onSearch(value); // Enter 시에만 부모에 전달
+  }
+
+  return <input value={value} onChange={e => setValue(e.target.value)} onKeyDown={handleKeyDown} />;
+});
+
+// 부모는 filterQuery만 관리 — 타이핑 시 리렌더 없음
+function Page() {
+  const [filterQuery, setFilterQuery] = useState("");
+  const filtered = useMemo(() => assets.filter(...), [filterQuery]);
+
+  return (
+    <>
+      <SearchInput onSearch={setFilterQuery} />
+      <BigList items={filtered} /> {/* Enter 시에만 리렌더 */}
+    </>
+  );
+}
+```
+
+### 확인 방법
+
+1. **P6 Before** 탭 → 검색창에 빠르게 타이핑 → 헤더의 "페이지 렌더: N회"가 타이핑마다 증가, "입력 지연 Xms" 표시
+2. **P6 After** 탭 → 같은 속도로 타이핑 → "페이지 렌더" 숫자 그대로, 입력 지연 1~2ms
+3. Enter 또는 검색 버튼 → 양쪽 모두 그 시점에만 리스트 갱신
+
+> 차이가 미미하면 DevTools → Performance 탭 → CPU: **4x slowdown** 적용 후 비교
