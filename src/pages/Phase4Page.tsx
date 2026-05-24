@@ -125,46 +125,6 @@ function ScenarioA() {
 }
 
 // ─────────────────────────────────────────
-// [시나리오 B] HTTP Cache-Control
-// ─────────────────────────────────────────
-
-function ScenarioB() {
-  return (
-    <div className="p4-scenario">
-      <h4 className="p4-scenario-title">시나리오 B — HTTP Cache-Control (정적 리소스)</h4>
-      <p className="p4-desc">
-        Vite 빌드 시 파일명에 해시가 붙습니다(<code>index-C0xLWZzV.js</code>).
-        파일 내용이 바뀌면 해시도 바뀌므로, 브라우저가 영구 캐싱해도 안전합니다.
-      </p>
-      <div className="p4-cache-table">
-        <div className="p4-cache-row header">
-          <span>리소스</span><span>Cache-Control 권장값</span><span>이유</span>
-        </div>
-        <div className="p4-cache-row bad">
-          <span><code>index.html</code></span>
-          <span><code>no-cache</code></span>
-          <span>항상 최신 JS 해시를 확인해야 함</span>
-        </div>
-        <div className="p4-cache-row good">
-          <span><code>*.js / *.css</code> (해시 포함)</span>
-          <span><code>max-age=31536000, immutable</code></span>
-          <span>해시가 다르면 새 파일 → 영구 캐싱 안전</span>
-        </div>
-        <div className="p4-cache-row good">
-          <span>이미지 / 폰트</span>
-          <span><code>max-age=86400</code></span>
-          <span>하루 캐싱, 자주 안 바뀌는 리소스</span>
-        </div>
-      </div>
-      <p className="p4-desc" style={{ marginTop: 8 }}>
-        <b>확인 방법</b>: <code>npm run build && npm run preview</code> 후 Network 탭 →
-        두 번째 방문 시 JS/CSS 파일의 Size 컬럼에 <code>(disk cache)</code> 표시 확인
-      </p>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────
 // Phase 4 메인 페이지
 // ─────────────────────────────────────────
 
@@ -175,11 +135,10 @@ export default function Phase4Page() {
         <span className="badge" style={{ background: "#2a1a3a", color: "#ce93d8" }}>
           💾 Phase 4 — 캐싱 최적화
         </span>
-        <span className="p2-hint">2단계 캐싱: 서버 데이터(TanStack Query) / HTTP 정적 리소스</span>
+        <span className="p2-hint">TanStack Query staleTime — 같은 데이터 재요청 방지</span>
       </div>
       <div className="p3-wrap">
         <ScenarioA />
-        <ScenarioB />
       </div>
     </div>
   );
