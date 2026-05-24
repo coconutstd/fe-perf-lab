@@ -20,18 +20,23 @@ npm run dev   # http://localhost:5173
 ```
 src/
 ├── entities/asset/
-│   └── types.ts                  # Asset 인터페이스
+│   └── types.ts                  # Asset 인터페이스 (updatedAt 포함)
 ├── shared/lib/
-│   └── mockGenerator.ts          # 1000개 자산 초기 데이터 생성기
+│   └── mockGenerator.ts          # 1000개 자산 생성 + 이미지 URL 분기
 ├── store/
 │   └── assetStore.ts             # Zustand — 스트리밍 시뮬레이터 + 실험 파라미터
 ├── components/
-│   ├── before/AssetRow.tsx       # ❌ memo 없음
-│   ├── after/AssetRow.tsx        # ✅ React.memo 적용
-│   └── StreamingControls.tsx     # 주기 / 비율 / 참조 무결성 컨트롤
+│   ├── before/AssetRow.tsx       # ❌ Phase 1 Before (memo 없음)
+│   ├── after/AssetRow.tsx        # ✅ Phase 1 After (React.memo)
+│   ├── p2before/AssetRow.tsx     # ❌ Phase 2 Before (width + background-color)
+│   ├── p2after/AssetRow.tsx      # ✅ Phase 2 After (transform + opacity)
+│   └── StreamingControls.tsx     # 주기 / 비율 / 참조 무결성 / 이미지 컨트롤
 └── pages/
-    ├── DashboardBefore.tsx       # ❌ useCallback / useMemo 없음
-    └── DashboardAfter.tsx        # ✅ 3종 최적화 적용
+    ├── DashboardBefore.tsx       # Phase 1 ❌
+    ├── DashboardAfter.tsx        # Phase 1 ✅
+    ├── Phase2Before.tsx          # Phase 2 ❌
+    ├── Phase2After.tsx           # Phase 2 ✅
+    └── Phase3Page.tsx            # Phase 3 번들 최적화 실험
 ```
 
 ---
@@ -99,26 +104,98 @@ Before는 스트리밍 1틱마다 200개 카운트가 올라가고, After는 실
 
 ---
 
-## Phase 2 — Reflow / Repaint 최적화 (예정)
+## Phase 2 — Reflow / Repaint 최적화
 
-**목표**: 가격 변동 애니메이션을 `width` 대신 `transform: scaleX()` / `opacity`로 교체해 GPU Composite 단계만 활용
+### 핵심 질문
+> "애니메이션 CSS 속성을 잘못 고르면 왜 브라우저가 버벅거릴까?"
 
-**확인 도구**: Chrome DevTools → Rendering → Paint flashing / Layout Shift Regions
+브라우저가 화면을 그리는 단계: **Layout → Paint → Composite**
+- `width`, `height`, `margin` 변경 → Layout부터 전부 다시 수행 (비쌈)
+- `background-color` 변경 → Paint부터 다시 수행
+- `transform`, `opacity` 변경 → **Composite만 수행** (GPU 처리, 가장 저렴)
+
+### Before vs After
+
+| | CSS 속성 | 트리거 단계 |
+|---|---|---|
+| ❌ 모멘텀 바 | `width` + `transition: width` | Layout → Paint → Composite |
+| ✅ 모멘텀 바 | `transform: scaleX()` + `will-change: transform` | **Composite only** |
+| ❌ 행 하이라이트 | `background-color` transition (tr 배경) | Paint → Composite |
+| ✅ 행 하이라이트 | `opacity` transition (별도 레이어) + `will-change: opacity` | **Composite only** |
+
+### 확인 방법 (Chrome DevTools Rendering)
+
+1. DevTools → 오른쪽 상단 `⋮` → More tools → **Rendering**
+2. **Paint flashing** ON (Repaint 영역이 초록색으로 표시됨)
+3. 스트리밍 시작 → **P2 Before** 탭: 모멘텀 바마다 초록 영역이 깜빡임
+4. **P2 After** 탭으로 전환: 깜빡임 없음 (GPU 처리, 브라우저 Paint 없음)
 
 ---
 
-## Phase 3 — 번들 최적화 (일부 구현)
+## Phase 3 — 번들 최적화
 
-현재 구현:
-- `React.lazy` + `Suspense`: 탭 클릭 시점에 청크 로드 (App.tsx)
+### 핵심 질문
+> "앱이 커질수록 첫 로딩이 느려지는데, 어떻게 줄일까?"
 
-예정:
-- `rollup-plugin-visualizer`로 번들 크기 시각화
-- Tree Shaking 전후 비교
-- 이미지 WebP 최적화 (Unsplash 쿼리스트링 `?w=40&q=80` 제거/적용)
+### ① 코드 스플리팅 (React.lazy + Suspense)
 
-**현재 확인 방법**:
-DevTools Network 탭 → "Before" 또는 "After" 탭 처음 클릭 시 별도 청크 `.js` 파일 요청 확인
+```tsx
+// 탭을 클릭하는 시점에 해당 청크만 다운로드
+const Phase2Before = lazy(() => import("./pages/Phase2Before"))
+
+<Suspense fallback={<div>로딩 중...</div>}>
+  {tab === "p2-before" && <Phase2Before />}
+</Suspense>
+```
+
+**확인**: DevTools → Network → JS 필터 → Phase 탭 처음 클릭 시 `Phase2Before-[hash].js` 파일 요청 확인
+
+**빌드 결과 (실제 청크 크기)**:
+```
+DashboardBefore-xxx.js    1.60 kB   ← 탭 클릭 전까지 다운로드 안 됨
+DashboardAfter-xxx.js     1.68 kB
+Phase2Before-xxx.js       2.33 kB
+Phase2After-xxx.js        2.85 kB
+Phase3Page-xxx.js         3.60 kB
+index-xxx.js            200.17 kB   ← react-dom 포함 메인 번들
+```
+
+### ② 번들 크기 분석 (rollup-plugin-visualizer)
+
+```bash
+npm run build   # dist/stats.html 자동 생성
+open dist/stats.html
+```
+
+트리맵으로 어떤 패키지가 번들을 얼마나 차지하는지 시각적으로 확인 가능.
+청크가 비정상적으로 크면 추가 lazy 분리 대상.
+
+### ③ Tree Shaking
+
+빌드 시 실제로 사용된 코드만 번들에 포함. **ES Module 방식**이어야 작동함.
+
+```ts
+// ❌ Before — 전체 라이브러리 번들에 포함 (lodash ~70KB)
+import _ from 'lodash'
+const sorted = _.sortBy(assets, 'price')
+
+// ✅ After — sortBy 함수만 포함
+import { sortBy } from 'lodash-es'
+const sorted = sortBy(assets, 'price')
+```
+
+stats.html에서 lodash 전체 import 시 청크 크기가 급격히 커지는 것을 확인 가능.
+
+### ④ 이미지 최적화 (WebP + 리사이즈)
+
+Phase 3 탭의 토글로 직접 비교 가능.
+
+| | URL 쿼리스트링 | 이미지 1장 크기 |
+|---|---|---|
+| ❌ Before | `?fit=crop&w=800&q=100` (JPEG 원본) | ~100–200 KB |
+| ✅ After | `?auto=format&fm=webp&w=40&h=40&q=60` | ~1–3 KB |
+
+**확인**: DevTools → Network → Img 필터 → Size 컬럼 비교
 
 ---
 
