@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAssetStore } from "../store/assetStore";
 import { fetchAssetDetail, getApiCallCount } from "../shared/lib/fakeApi";

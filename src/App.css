@@ -121,6 +121,14 @@ th { padding: 8px 12px; text-align: left; color: #666; font-weight: 600; }
 .p4-side-label.bad  { background: #3e1a1a; color: #ef9a9a; }
 .p4-side-label.good { background: #1a3a1a; color: #a5d6a7; }
 
+/* Phase 5 */
+.p5-dom-count { font-size: 12px; font-weight: 600; }
+.p5-dom-count.bad  { color: #f44336; }
+.p5-dom-count.good { color: #4caf50; }
+.p5-mount-time { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.p5-mount-time.bad  { background: #3e1a1a; color: #f44336; }
+.p5-mount-time.good { background: #1a3a1a; color: #4caf50; }
+
 /* Momentum bar */
 .td-bar { padding: 7px 12px; width: 140px; }
 .bar-track { height: 6px; background: #1e1e3a; border-radius: 3px; overflow: hidden; }

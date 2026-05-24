@@ -8,16 +8,20 @@ const Phase2Before    = lazy(() => import("./pages/Phase2Before"));
 const Phase2After     = lazy(() => import("./pages/Phase2After"));
 const Phase3Page      = lazy(() => import("./pages/Phase3Page"));
 const Phase4Page      = lazy(() => import("./pages/Phase4Page"));
+const Phase5Before    = lazy(() => import("./pages/Phase5Before"));
+const Phase5After     = lazy(() => import("./pages/Phase5After"));
 
-type Tab = "p1-before" | "p1-after" | "p2-before" | "p2-after" | "p3" | "p4";
+type Tab = "p1-before" | "p1-after" | "p2-before" | "p2-after" | "p3" | "p4" | "p5-before" | "p5-after";
 
-const TABS: { id: Tab; label: string; phase: 1 | 2 | 3 | 4 }[] = [
+const TABS: { id: Tab; label: string; phase: 1 | 2 | 3 | 4 | 5 }[] = [
   { id: "p1-before", label: "❌ P1 Before",  phase: 1 },
   { id: "p1-after",  label: "✅ P1 After",   phase: 1 },
   { id: "p2-before", label: "❌ P2 Before",  phase: 2 },
   { id: "p2-after",  label: "✅ P2 After",   phase: 2 },
   { id: "p3",        label: "📦 P3 번들",    phase: 3 },
   { id: "p4",        label: "💾 P4 캐싱",    phase: 4 },
+  { id: "p5-before", label: "❌ P5 Before",  phase: 5 },
+  { id: "p5-after",  label: "✅ P5 After",   phase: 5 },
 ];
 
 function App() {
@@ -68,6 +72,15 @@ function App() {
             onClick={() => setTab(t.id)}
           >{t.label}</button>
         ))}
+        <span className="tab-divider" />
+        <span className="tab-phase-label">Phase 5 · 가상화</span>
+        {TABS.filter(t => t.phase === 5).map(t => (
+          <button
+            key={t.id}
+            className={`tab-btn ${tab === t.id ? `active ${t.id.includes("before") ? "before" : "after"}` : ""}`}
+            onClick={() => setTab(t.id)}
+          >{t.label}</button>
+        ))}
       </nav>
 
       <Suspense fallback={<div className="loading">청크 로딩 중...</div>}>
@@ -77,6 +90,8 @@ function App() {
         {tab === "p2-after"  && <Phase2After />}
         {tab === "p3"        && <Phase3Page />}
         {tab === "p4"        && <Phase4Page />}
+        {tab === "p5-before" && <Phase5Before />}
+        {tab === "p5-after"  && <Phase5After />}
       </Suspense>
     </div>
   );

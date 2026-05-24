@@ -36,7 +36,10 @@ src/
     ├── DashboardAfter.tsx        # Phase 1 ✅
     ├── Phase2Before.tsx          # Phase 2 ❌
     ├── Phase2After.tsx           # Phase 2 ✅
-    └── Phase3Page.tsx            # Phase 3 번들 최적화 실험
+    ├── Phase3Page.tsx            # Phase 3 번들 최적화 실험
+    ├── Phase4Page.tsx            # Phase 4 캐싱 최적화 실험
+    ├── Phase5Before.tsx          # Phase 5 ❌ (1000행 전부 DOM 렌더)
+    └── Phase5After.tsx           # Phase 5 ✅ (useVirtualizer — ~25행만 DOM 렌더)
 ```
 
 ---
@@ -199,10 +202,62 @@ Phase 3 탭의 토글로 직접 비교 가능.
 
 ---
 
-## Phase 4 — 캐싱 최적화 (예정)
+## Phase 4 — 캐싱 최적화
 
-| 캐싱 레벨 | 기술 | 시나리오 |
+### 핵심 질문
+> "같은 데이터를 반복 요청할 때마다 네트워크를 타야 할까?"
+
+### 시나리오 A — TanStack Query `staleTime`
+
+모달을 열면 자산 상세 API를 호출한다. **닫고 5초 안에 같은 자산을 다시 열면?**
+
+| | 구현 | 두 번째 열기 |
 |---|---|---|
-| 서버 데이터 | TanStack Query (`staleTime`) | 자산 상세 모달 재호출 시 네트워크 요청 생략 |
-| 정적 리소스 | HTTP Cache-Control 헤더 | `(disk cache)` / `(memory cache)` 확인 |
-| 클라이언트 연산 | `useMemo` | 1000개 자산 정렬/필터링 연산 시간 비교 |
+| ❌ Before | `useEffect` + `fetch` | 항상 500ms 로딩 |
+| ✅ After | `useQuery({ staleTime: 5000 })` | 즉시 표시 (캐시 히트) |
+
+**확인**: 콘솔에서 "API 누적 호출 수" 숫자 비교. Before는 열 때마다 증가, After는 5초 내 재열기 시 증가 안 함.
+
+---
+
+## Phase 5 — 가상화 (Virtual Scrolling)
+
+### 핵심 질문
+> "1000개 행을 DOM에 전부 그리면 뭐가 문제일까?"
+
+브라우저는 DOM에 **존재하는 모든 요소**를 Layout/Paint 단계에서 처리한다. 화면에 보이는 건 15개뿐이어도 DOM에 1000개 `<tr>`이 있으면 그 비용을 전부 치른다.
+
+**가상화(Virtualization)**: 스크롤 위치를 기준으로 **화면에 보이는 행 + 약간의 여유분**만 DOM에 렌더하고, 나머지는 절대 좌표로 공간만 잡아둔다.
+
+### Before vs After
+
+| | DOM 행 수 | 스크롤 시 |
+|---|---|---|
+| ❌ P5 Before | 1000개 항상 존재 | 전체 Layout 비용 |
+| ✅ P5 After | ~15개 (overscan 포함 ~25개) | 보이는 것만 처리 |
+
+### 구현 (`@tanstack/react-virtual`)
+
+```tsx
+const virtualizer = useVirtualizer({
+  count: assets.length,        // 전체 항목 수
+  getScrollElement: () => parentRef.current,
+  estimateSize: () => 44,      // 행 높이(px) 추정값
+  overscan: 5,                 // 화면 밖 위아래 5행 미리 렌더
+});
+
+// 전체 스크롤 공간 확보
+<div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+  {virtualizer.getVirtualItems().map((row) => (
+    <div style={{ position: "absolute", top: row.start, height: row.size }}>
+      {/* 실제 데이터 렌더 */}
+    </div>
+  ))}
+</div>
+```
+
+### 확인 방법 (Chrome DevTools)
+
+1. **Elements 탭**: P5 Before → 스크롤 컨테이너 안 행 1000개 확인 / P5 After → ~25개만 존재 확인
+2. **Performance 탭**: 스크롤 시 Before는 Layout 이벤트 빈번 / After는 현저히 감소
+3. **화면 상단 DOM 카운터**: P5 After 탭에서 스크롤해도 "DOM에 렌더된 행" 숫자가 일정하게 유지되는 것 확인
