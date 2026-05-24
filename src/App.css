@@ -129,6 +129,18 @@ th { padding: 8px 12px; text-align: left; color: #666; font-weight: 600; }
 .p5-mount-time.bad  { background: #3e1a1a; color: #f44336; }
 .p5-mount-time.good { background: #1a3a1a; color: #4caf50; }
 
+/* Phase 6 */
+.p6-render-count { font-size: 12px; font-weight: 600; }
+.p6-render-count.bad  { color: #f44336; }
+.p6-render-count.good { color: #4caf50; }
+.p6-lag { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.p6-lag.bad  { background: #3e1a1a; color: #f44336; }
+.p6-lag.good { background: #1a3a1a; color: #4caf50; }
+.p6-search-bar { display: flex; align-items: center; gap: 12px; padding: 12px 24px; flex-wrap: wrap; }
+.p6-input-wrap { display: flex; align-items: center; gap: 8px; }
+.p6-search-btn { padding: 5px 14px; background: #1a2a3a; border: 1px solid #333; border-radius: 4px; color: #90caf9; font-size: 13px; cursor: pointer; }
+.p6-search-btn:hover { background: #1e3a5a; }
+
 /* Momentum bar */
 .td-bar { padding: 7px 12px; width: 140px; }
 .bar-track { height: 6px; background: #1e1e3a; border-radius: 3px; overflow: hidden; }

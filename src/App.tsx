@@ -10,10 +10,12 @@ const Phase3Page      = lazy(() => import("./pages/Phase3Page"));
 const Phase4Page      = lazy(() => import("./pages/Phase4Page"));
 const Phase5Before    = lazy(() => import("./pages/Phase5Before"));
 const Phase5After     = lazy(() => import("./pages/Phase5After"));
+const Phase6Before    = lazy(() => import("./pages/Phase6Before"));
+const Phase6After     = lazy(() => import("./pages/Phase6After"));
 
-type Tab = "p1-before" | "p1-after" | "p2-before" | "p2-after" | "p3" | "p4" | "p5-before" | "p5-after";
+type Tab = "p1-before" | "p1-after" | "p2-before" | "p2-after" | "p3" | "p4" | "p5-before" | "p5-after" | "p6-before" | "p6-after";
 
-const TABS: { id: Tab; label: string; phase: 1 | 2 | 3 | 4 | 5 }[] = [
+const TABS: { id: Tab; label: string; phase: 1 | 2 | 3 | 4 | 5 | 6 }[] = [
   { id: "p1-before", label: "❌ P1 Before",  phase: 1 },
   { id: "p1-after",  label: "✅ P1 After",   phase: 1 },
   { id: "p2-before", label: "❌ P2 Before",  phase: 2 },
@@ -22,6 +24,8 @@ const TABS: { id: Tab; label: string; phase: 1 | 2 | 3 | 4 | 5 }[] = [
   { id: "p4",        label: "💾 P4 캐싱",    phase: 4 },
   { id: "p5-before", label: "❌ P5 Before",  phase: 5 },
   { id: "p5-after",  label: "✅ P5 After",   phase: 5 },
+  { id: "p6-before", label: "❌ P6 Before",  phase: 6 },
+  { id: "p6-after",  label: "✅ P6 After",   phase: 6 },
 ];
 
 function App() {
@@ -81,6 +85,15 @@ function App() {
             onClick={() => setTab(t.id)}
           >{t.label}</button>
         ))}
+        <span className="tab-divider" />
+        <span className="tab-phase-label">Phase 6 · State 위치</span>
+        {TABS.filter(t => t.phase === 6).map(t => (
+          <button
+            key={t.id}
+            className={`tab-btn ${tab === t.id ? `active ${t.id.includes("before") ? "before" : "after"}` : ""}`}
+            onClick={() => setTab(t.id)}
+          >{t.label}</button>
+        ))}
       </nav>
 
       <Suspense fallback={<div className="loading">청크 로딩 중...</div>}>
@@ -92,6 +105,8 @@ function App() {
         {tab === "p4"        && <Phase4Page />}
         {tab === "p5-before" && <Phase5Before />}
         {tab === "p5-after"  && <Phase5After />}
+        {tab === "p6-before" && <Phase6Before />}
+        {tab === "p6-after"  && <Phase6After />}
       </Suspense>
     </div>
   );
