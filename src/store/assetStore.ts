@@ -1,16 +1,18 @@
 import { create } from "zustand";
 import type { Asset } from "../entities/asset/types";
-import { generateInitialAssets } from "../shared/lib/mockGenerator";
+import { generateInitialAssets, getImageUrl } from "../shared/lib/mockGenerator";
 
 interface AssetStore {
   assets: Asset[];
   intervalMs: number;
-  updateRate: number; // 0.0 ~ 1.0 (업데이트 대상 비율)
-  brokenRefs: boolean; // true: 변경 없는 항목도 새 객체로 반환 → memo 무력화 실험
+  updateRate: number;
+  brokenRefs: boolean;
+  imageOptimized: boolean; // Phase 3: 이미지 최적화 토글
   isStreaming: boolean;
   setIntervalMs: (ms: number) => void;
   setUpdateRate: (rate: number) => void;
   setBrokenRefs: (v: boolean) => void;
+  setImageOptimized: (v: boolean) => void;
   tick: () => void;
   startStreaming: () => void;
   stopStreaming: () => void;
@@ -23,6 +25,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
   intervalMs: 50,
   updateRate: 0.01,
   brokenRefs: false,
+  imageOptimized: true,
   isStreaming: false,
 
   setIntervalMs: (ms) => {
@@ -35,6 +38,16 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
 
   setUpdateRate: (rate) => set({ updateRate: rate }),
   setBrokenRefs: (v) => set({ brokenRefs: v }),
+  setImageOptimized: (v) => {
+    // 토글 시 모든 자산의 imageUrl 일괄 교체
+    set((state) => ({
+      imageOptimized: v,
+      assets: state.assets.map((asset, i) => ({
+        ...asset,
+        imageUrl: getImageUrl(i, v),
+      })),
+    }));
+  },
 
   tick: () => {
     const { updateRate, brokenRefs } = get();

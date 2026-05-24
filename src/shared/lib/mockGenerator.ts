@@ -14,7 +14,17 @@ const SYMBOLS = [
   "META", "NFLX", "AMD", "INTC", "PYPL", "ADBE", "CRM", "ORCL",
 ];
 
-export function generateInitialAssets(count = 1000): Asset[] {
+// ❌ Before: 고해상도 원본 (w=800, q=100) → 이미지 1장 ~200KB
+export function getImageUrl(index: number, optimized: boolean): string {
+  const id = IMAGE_IDS[index % IMAGE_IDS.length];
+  if (optimized) {
+    // ✅ After: WebP 변환 + 리사이즈 (w=40, q=60) → 이미지 1장 ~1KB
+    return `https://images.unsplash.com/photo-${id}?auto=format&fm=webp&fit=crop&w=40&h=40&q=60`;
+  }
+  return `https://images.unsplash.com/photo-${id}?fit=crop&w=800&q=100`;
+}
+
+export function generateInitialAssets(count = 1000, optimized = true): Asset[] {
   return Array.from({ length: count }, (_, index) => {
     const symbolBase = SYMBOLS[index % SYMBOLS.length];
     const suffix = Math.floor(index / SYMBOLS.length);
@@ -26,10 +36,7 @@ export function generateInitialAssets(count = 1000): Asset[] {
       changeRate: parseFloat((Math.random() * 10 - 5).toFixed(2)),
       volume: Math.floor(Math.random() * 1_000_000),
       updatedAt: Date.now(),
-      // 이미지 최적화 실험: ?optimized=true 토글로 Before/After 전환
-      imageUrl: `https://images.unsplash.com/photo-${
-        IMAGE_IDS[index % IMAGE_IDS.length]
-      }?auto=format&fit=crop&w=40&h=40&q=80`,
+      imageUrl: getImageUrl(index, optimized),
     };
   });
 }
