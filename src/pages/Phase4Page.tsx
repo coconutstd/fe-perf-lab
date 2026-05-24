@@ -130,43 +130,44 @@ function ScenarioA() {
 
 type SortKey = "price" | "volume" | "changeRate";
 
+// 핵심: sort와 무관한 상태(ticker)가 바뀌어도 sort가 다시 실행되는가?
+function SortListBefore({ assets, sortKey }: { assets: ReturnType<typeof useAssetStore>["assets"] extends never ? never : any[]; sortKey: SortKey }) {
+  const sortCountRef = useRef(0);
+
+  // ❌ 렌더마다 무조건 실행 — ticker가 바뀌어도, assets이 안 바뀌어도 실행
+  sortCountRef.current++;
+  console.log(`[❌ Before] sort 실행 #${sortCountRef.current}`);
+  const sorted = [...assets].sort((a, b) => b[sortKey] - a[sortKey]);
+
+  return { sorted, sortCount: sortCountRef.current };
+}
+
+function SortListAfter({ assets, sortKey }: { assets: any[]; sortKey: SortKey }) {
+  const sortCountRef = useRef(0);
+
+  // ✅ assets 또는 sortKey가 실제로 바뀔 때만 실행
+  const sorted = useMemo(() => {
+    sortCountRef.current++;
+    console.log(`[✅ After] sort 실행 #${sortCountRef.current}`);
+    return [...assets].sort((a, b) => b[sortKey] - a[sortKey]);
+  }, [assets, sortKey]);
+
+  return { sorted, sortCount: sortCountRef.current };
+}
+
 function ScenarioB() {
   const assets = useAssetStore((s) => s.assets);
   const [sortKey, setSortKey] = useState<SortKey>("price");
-  const [useMemoOn, setUseMemoOn] = useState(true);
-  const renderCount = useRef(0);
-  renderCount.current++;
+  // sort와 전혀 관계없는 상태 — 클릭할 때마다 이 컴포넌트가 리렌더됨
+  const [ticker, setTicker] = useState(0);
 
-  // ❌ Before: assets나 sortKey가 바뀌지 않아도 렌더마다 1000개 정렬 재실행
-  const sortedBefore = useMemoOn
-    ? null
-    : [...assets].sort((a, b) => b[sortKey] - a[sortKey]);
-
-  // ✅ After: assets 또는 sortKey가 바뀔 때만 재정렬
-  const sortedAfter = useMemo(() => {
-    if (!useMemoOn) return null;
-    console.time(`sort(${sortKey})`);
-    const result = [...assets].sort((a, b) => b[sortKey] - a[sortKey]);
-    console.timeEnd(`sort(${sortKey})`);
-    return result;
-  }, [assets, sortKey, useMemoOn]);
-
-  const sorted = useMemoOn ? sortedAfter! : sortedBefore!;
+  const before = SortListBefore({ assets, sortKey });
+  const after  = SortListAfter({ assets, sortKey });
 
   return (
     <div className="p4-scenario">
       <div className="p4-scenario-header">
         <h4 className="p4-scenario-title">시나리오 B — useMemo 연산 캐싱</h4>
-        <div className="p4-toggle-group">
-          <button
-            className={`p3-toggle-btn ${!useMemoOn ? "active-bad" : ""}`}
-            onClick={() => setUseMemoOn(false)}
-          >❌ useMemo 없음</button>
-          <button
-            className={`p3-toggle-btn ${useMemoOn ? "active-good" : ""}`}
-            onClick={() => setUseMemoOn(true)}
-          >✅ useMemo 적용</button>
-        </div>
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -177,32 +178,66 @@ function ScenarioB() {
           <option value="changeRate">등락률순</option>
         </select>
       </div>
+
       <p className="p4-desc">
-        스트리밍 ON 상태에서 정렬 기준을 바꿔보세요.<br />
-        <b>Before</b>: 50ms마다 1000개 정렬 재실행 | <b>After</b>: sortKey 변경 시에만 재실행.<br />
-        콘솔에서 <code>console.time('sort')</code> 로그 확인.
+        아래 버튼은 sort와 <b>전혀 관계없는 상태</b>를 바꿉니다. 클릭하면 이 컴포넌트가 리렌더됩니다.<br />
+        콘솔에서 <b>Before는 클릭마다 sort가 실행</b>되고, <b>After는 실행되지 않는 것</b>을 확인하세요.
       </p>
-      <div className="table-wrap" style={{ maxHeight: 300 }}>
-        <table>
-          <thead><tr><th>순위</th><th>심볼</th><th>{sortKey === "price" ? "가격" : sortKey === "volume" ? "거래량" : "등락률"}</th></tr></thead>
-          <tbody>
-            {sorted.slice(0, 20).map((asset, i) => (
-              <tr key={asset.id} className="asset-row">
-                <td className="td-price" style={{ color: "#555", width: 40 }}>{i + 1}</td>
-                <td className="td-symbol"><div className="td-symbol-inner">{asset.symbol}</div></td>
-                <td className="td-price">
-                  {sortKey === "price" && `$${asset.price.toLocaleString()}`}
-                  {sortKey === "volume" && asset.volume.toLocaleString()}
-                  {sortKey === "changeRate" && (
-                    <span className={asset.changeRate >= 0 ? "positive" : "negative"}>
-                      {asset.changeRate >= 0 ? "+" : ""}{asset.changeRate.toFixed(2)}%
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          className="p3-toggle-btn active-bad"
+          onClick={() => setTicker(t => t + 1)}
+        >
+          🔄 관계없는 리렌더 유발 ({ticker}번)
+        </button>
+        <span className="p4-desc" style={{ margin: 0 }}>
+          ❌ Before sort 횟수: <b style={{ color: "#ef9a9a" }}>{before.sortCount}</b>
+          &nbsp;|&nbsp;
+          ✅ After sort 횟수: <b style={{ color: "#a5d6a7" }}>{after.sortCount}</b>
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
+        <div>
+          <div className="p4-side-label bad">❌ useMemo 없음 — 리렌더마다 sort</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead><tr><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>#</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>심볼</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>값</th></tr></thead>
+            <tbody>
+              {before.sorted.slice(0, 10).map((asset, i) => (
+                <tr key={asset.id} className="asset-row">
+                  <td style={{ padding: "5px 8px", color: "#555" }}>{i + 1}</td>
+                  <td style={{ padding: "5px 8px", fontWeight: 600 }}>{asset.symbol}</td>
+                  <td style={{ padding: "5px 8px", color: "#aaa" }}>
+                    {sortKey === "price" && `$${asset.price.toLocaleString()}`}
+                    {sortKey === "volume" && asset.volume.toLocaleString()}
+                    {sortKey === "changeRate" && `${asset.changeRate.toFixed(2)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="p4-side-label good">✅ useMemo 적용 — 입력값 바뀔 때만 sort</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead><tr><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>#</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>심볼</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>값</th></tr></thead>
+            <tbody>
+              {after.sorted.slice(0, 10).map((asset, i) => (
+                <tr key={asset.id} className="asset-row">
+                  <td style={{ padding: "5px 8px", color: "#555" }}>{i + 1}</td>
+                  <td style={{ padding: "5px 8px", fontWeight: 600 }}>{asset.symbol}</td>
+                  <td style={{ padding: "5px 8px", color: "#aaa" }}>
+                    {sortKey === "price" && `$${asset.price.toLocaleString()}`}
+                    {sortKey === "volume" && asset.volume.toLocaleString()}
+                    {sortKey === "changeRate" && `${asset.changeRate.toFixed(2)}%`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
