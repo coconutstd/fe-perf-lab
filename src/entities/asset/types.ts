@@ -6,4 +6,5 @@ export interface Asset {
   changeRate: number;
   volume: number;
   imageUrl: string;
+  updatedAt: number;
 }

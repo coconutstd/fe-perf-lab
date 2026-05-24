@@ -49,6 +49,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
             price: parseFloat(nextPrice.toFixed(2)),
             changeRate: parseFloat(((delta / asset.price) * 100).toFixed(2)),
             volume: asset.volume + Math.floor(Math.random() * 10_000),
+            updatedAt: Date.now(),
           };
         }
         // brokenRefs=true: 값 변화 없이 새 객체 반환 → React.memo shallow 비교 실패

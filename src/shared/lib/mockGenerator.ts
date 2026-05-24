@@ -25,6 +25,7 @@ export function generateInitialAssets(count = 1000): Asset[] {
       price: Math.floor(Math.random() * 10000) + 100,
       changeRate: parseFloat((Math.random() * 10 - 5).toFixed(2)),
       volume: Math.floor(Math.random() * 1_000_000),
+      updatedAt: Date.now(),
       // 이미지 최적화 실험: ?optimized=true 토글로 Before/After 전환
       imageUrl: `https://images.unsplash.com/photo-${
         IMAGE_IDS[index % IMAGE_IDS.length]
