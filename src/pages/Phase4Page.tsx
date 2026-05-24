@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAssetStore } from "../store/assetStore";
 import { fetchAssetDetail, getApiCallCount } from "../shared/lib/fakeApi";
@@ -125,132 +125,13 @@ function ScenarioA() {
 }
 
 // ─────────────────────────────────────────
-// [시나리오 B] useMemo 연산 캐싱
+// [시나리오 B] HTTP Cache-Control
 // ─────────────────────────────────────────
-
-type SortKey = "price" | "volume" | "changeRate";
-
-// 핵심: sort와 무관한 상태(ticker)가 바뀌어도 sort가 다시 실행되는가?
-function SortListBefore({ assets, sortKey }: { assets: ReturnType<typeof useAssetStore>["assets"] extends never ? never : any[]; sortKey: SortKey }) {
-  const sortCountRef = useRef(0);
-
-  // ❌ 렌더마다 무조건 실행 — ticker가 바뀌어도, assets이 안 바뀌어도 실행
-  sortCountRef.current++;
-  console.log(`[❌ Before] sort 실행 #${sortCountRef.current}`);
-  const sorted = [...assets].sort((a, b) => b[sortKey] - a[sortKey]);
-
-  return { sorted, sortCount: sortCountRef.current };
-}
-
-function SortListAfter({ assets, sortKey }: { assets: any[]; sortKey: SortKey }) {
-  const sortCountRef = useRef(0);
-
-  // ✅ assets 또는 sortKey가 실제로 바뀔 때만 실행
-  const sorted = useMemo(() => {
-    sortCountRef.current++;
-    console.log(`[✅ After] sort 실행 #${sortCountRef.current}`);
-    return [...assets].sort((a, b) => b[sortKey] - a[sortKey]);
-  }, [assets, sortKey]);
-
-  return { sorted, sortCount: sortCountRef.current };
-}
 
 function ScenarioB() {
-  const assets = useAssetStore((s) => s.assets);
-  const [sortKey, setSortKey] = useState<SortKey>("price");
-  // sort와 전혀 관계없는 상태 — 클릭할 때마다 이 컴포넌트가 리렌더됨
-  const [ticker, setTicker] = useState(0);
-
-  const before = SortListBefore({ assets, sortKey });
-  const after  = SortListAfter({ assets, sortKey });
-
   return (
     <div className="p4-scenario">
-      <div className="p4-scenario-header">
-        <h4 className="p4-scenario-title">시나리오 B — useMemo 연산 캐싱</h4>
-        <select
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="p4-select"
-        >
-          <option value="price">가격순</option>
-          <option value="volume">거래량순</option>
-          <option value="changeRate">등락률순</option>
-        </select>
-      </div>
-
-      <p className="p4-desc">
-        아래 버튼은 sort와 <b>전혀 관계없는 상태</b>를 바꿉니다. 클릭하면 이 컴포넌트가 리렌더됩니다.<br />
-        콘솔에서 <b>Before는 클릭마다 sort가 실행</b>되고, <b>After는 실행되지 않는 것</b>을 확인하세요.
-      </p>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button
-          className="p3-toggle-btn active-bad"
-          onClick={() => setTicker(t => t + 1)}
-        >
-          🔄 관계없는 리렌더 유발 ({ticker}번)
-        </button>
-        <span className="p4-desc" style={{ margin: 0 }}>
-          ❌ Before sort 횟수: <b style={{ color: "#ef9a9a" }}>{before.sortCount}</b>
-          &nbsp;|&nbsp;
-          ✅ After sort 횟수: <b style={{ color: "#a5d6a7" }}>{after.sortCount}</b>
-        </span>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
-        <div>
-          <div className="p4-side-label bad">❌ useMemo 없음 — 리렌더마다 sort</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>#</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>심볼</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>값</th></tr></thead>
-            <tbody>
-              {before.sorted.slice(0, 10).map((asset, i) => (
-                <tr key={asset.id} className="asset-row">
-                  <td style={{ padding: "5px 8px", color: "#555" }}>{i + 1}</td>
-                  <td style={{ padding: "5px 8px", fontWeight: 600 }}>{asset.symbol}</td>
-                  <td style={{ padding: "5px 8px", color: "#aaa" }}>
-                    {sortKey === "price" && `$${asset.price.toLocaleString()}`}
-                    {sortKey === "volume" && asset.volume.toLocaleString()}
-                    {sortKey === "changeRate" && `${asset.changeRate.toFixed(2)}%`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <div className="p4-side-label good">✅ useMemo 적용 — 입력값 바뀔 때만 sort</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>#</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>심볼</th><th style={{ padding: "6px 8px", textAlign: "left", color: "#555" }}>값</th></tr></thead>
-            <tbody>
-              {after.sorted.slice(0, 10).map((asset, i) => (
-                <tr key={asset.id} className="asset-row">
-                  <td style={{ padding: "5px 8px", color: "#555" }}>{i + 1}</td>
-                  <td style={{ padding: "5px 8px", fontWeight: 600 }}>{asset.symbol}</td>
-                  <td style={{ padding: "5px 8px", color: "#aaa" }}>
-                    {sortKey === "price" && `$${asset.price.toLocaleString()}`}
-                    {sortKey === "volume" && asset.volume.toLocaleString()}
-                    {sortKey === "changeRate" && `${asset.changeRate.toFixed(2)}%`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────
-// [시나리오 C] HTTP Cache-Control
-// ─────────────────────────────────────────
-
-function ScenarioC() {
-  return (
-    <div className="p4-scenario">
-      <h4 className="p4-scenario-title">시나리오 C — HTTP Cache-Control (정적 리소스)</h4>
+      <h4 className="p4-scenario-title">시나리오 B — HTTP Cache-Control (정적 리소스)</h4>
       <p className="p4-desc">
         Vite 빌드 시 파일명에 해시가 붙습니다(<code>index-C0xLWZzV.js</code>).
         파일 내용이 바뀌면 해시도 바뀌므로, 브라우저가 영구 캐싱해도 안전합니다.
@@ -294,12 +175,11 @@ export default function Phase4Page() {
         <span className="badge" style={{ background: "#2a1a3a", color: "#ce93d8" }}>
           💾 Phase 4 — 캐싱 최적화
         </span>
-        <span className="p2-hint">3단계 캐싱: 서버 데이터 / 클라이언트 연산 / HTTP 정적 리소스</span>
+        <span className="p2-hint">2단계 캐싱: 서버 데이터(TanStack Query) / HTTP 정적 리소스</span>
       </div>
       <div className="p3-wrap">
         <ScenarioA />
         <ScenarioB />
-        <ScenarioC />
       </div>
     </div>
   );
