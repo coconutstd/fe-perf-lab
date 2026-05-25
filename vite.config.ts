@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig({
+  base: '/fe-perf-lab/',
   plugins: [
     react(),
     // npm run build 후 dist/stats.html 자동 생성
