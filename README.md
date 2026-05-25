@@ -3,6 +3,8 @@
 실시간 대용량 자산 트레이딩 대시보드 도메인을 통해 React 성능 최적화를 **Before → Profile → After** 방식으로 직접 체감하는 실험 프로젝트.
 
 > 참고 문서: [fe-8.md](https://github.com/maeil-mail/maeil-mail-contents/blob/main/frontend/contents/fe-8.md) · [fe-19.md](https://github.com/maeil-mail/maeil-mail-contents/blob/main/frontend/contents/fe-19.md)
+>
+> 🚀 **라이브**: http://13.125.232.51/fe-perf-lab/
 
 ---
 
